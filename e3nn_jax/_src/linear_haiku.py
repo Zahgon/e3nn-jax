@@ -20,69 +20,6 @@ from .linear import (
 
 
 class Linear(hk.Module):
-    r"""Equivariant Linear Haiku Module.
-
-    Args:
-        irreps_out (`Irreps`): output representations, if allowed bu Schur's lemma.
-        channel_out (optional int): if specified, the last axis before the irreps
-            is assumed to be the channel axis and is mixed with the irreps.
-        irreps_in (optional `Irreps`): input representations. If not specified,
-            the input representations is obtained when calling the module.
-        biases (bool): whether to add a bias to the output.
-        path_normalization (str or float): Normalization of the paths, ``element`` or ``path``.
-            0/1 corresponds to a normalization where each element/path has an equal contribution to the forward.
-        gradient_normalization (str or float): Normalization of the gradients, ``element`` or ``path``.
-            0/1 corresponds to a normalization where each element/path has an equal contribution to the learning.
-        get_parameter (optional Callable): function to get the parameters.
-        num_indexed_weights (optional int): number of indexed weights. See example below.
-        weights_per_channel (bool): whether to have one set of weights per channel.
-        force_irreps_out (bool): whether to force the output irreps to be the one specified in ``irreps_out``.
-        name (optional str): name of the module.
-
-    Examples:
-        Vanilla::
-
-            >>> import e3nn_jax as e3nn
-            >>> import jax
-            >>>
-            >>> @hk.without_apply_rng
-            ... @hk.transform
-            ... def linear(x):
-            ...     return e3nn.haiku.Linear("0e + 1o + 2e")(x)
-            >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones(5))
-            >>> params = linear.init(jax.random.PRNGKey(0), x)
-            >>> y = linear.apply(params, x)
-            >>> y.irreps  # Note that the 2e is discarded
-            1x0e+1x1o
-            >>> y.shape
-            (4,)
-
-        External weights::
-
-            >>> @hk.without_apply_rng
-            ... @hk.transform
-            ... def linear(w, x):
-            ...     return e3nn.haiku.Linear("0e + 1o")(w, x)
-            >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones(5))
-            >>> w = jnp.array([1., 2., 3., 4.])
-            >>> params = linear.init(jax.random.PRNGKey(0), w, x)
-            >>> y = linear.apply(params, w, x)
-            >>> y.shape
-            (4,)
-
-        External indices::
-
-            >>> @hk.without_apply_rng
-            ... @hk.transform
-            ... def linear(i, x):
-            ...     return e3nn.haiku.Linear("0e + 1o", num_indexed_weights=4)(i, x)
-            >>> x = e3nn.IrrepsArray("1o + 2x0e", jnp.ones((2, 5)))
-            >>> i = jnp.array([2, 3])
-            >>> params = linear.init(jax.random.PRNGKey(0), i, x)
-            >>> y = linear.apply(params, i, x)
-            >>> y.shape
-            (2, 4)
-    """
 
     def __init__(
         self,
@@ -132,17 +69,7 @@ class Linear(hk.Module):
                 Callable[[], jax.nn.initializers.Initializer]
             ] = None,
         ):
-            if parameter_initializer is None:
-                parameter_initializer = lambda: hk.initializers.RandomNormal(
-                    stddev=weight_std
-                )
-
-            return hk.get_parameter(
-                name,
-                shape=path_shape,
-                dtype=dtype,
-                init=parameter_initializer(),
-            )
+            pass
 
         self.get_parameter = functools.partial(
             _get_parameter, parameter_initializer=parameter_initializer

@@ -47,7 +47,6 @@ def radial_basis(r, cutoff, num_radial_basis):
     Returns:
         jax.Array: radial basis functions
     """
-    # TODO: determine if we need a normalization factor
     r = r / cutoff
     return e3nn.bessel(r, num_radial_basis) * e3nn.soft_envelope(r)[:, None]
 
@@ -55,60 +54,7 @@ def radial_basis(r, cutoff, num_radial_basis):
 def _call(
     self, positions, node_feats, senders, receivers, Linear, MultiLayerPerceptron
 ):
-    if not isinstance(positions, e3nn.IrrepsArray):
-        raise TypeError(
-            f"positions must be an e3nn.IrrepsArray with shape (n_nodes, 3) and irreps '1o' or '1e'. Got {type(positions)}"
-        )
-    if not isinstance(node_feats, e3nn.IrrepsArray):
-        raise TypeError(
-            f"node_feats must be an e3nn.IrrepsArray with shape (n_nodes, irreps). Got {type(node_feats)}"
-        )
-
-    assert positions.ndim == 2
-    assert node_feats.ndim == 2
-
-    vectors = positions[receivers] - positions[senders]  # [n_edges, 1e or 1o]
-    r = e3nn.norm(vectors).array[:, 0]
-    edge_attrs = e3nn.concatenate(
-        [
-            self.radial_basis(r),
-            e3nn.spherical_harmonics(list(range(1, self.sh_lmax + 1)), vectors, True),
-        ]
-    )
-
-    node_feats = Linear(node_feats.irreps, name="linear_up")(node_feats)
-
-    messages = node_feats[senders]
-
-    messages = e3nn.concatenate(
-        [
-            messages.filter(self.target_irreps),
-            e3nn.tensor_product(
-                messages,
-                edge_attrs.filter(drop="0e"),
-                filter_ir_out=self.target_irreps,
-            ),
-        ]
-    ).regroup()  # [n_edges, irreps]
-
-    mix = MultiLayerPerceptron(
-        self.mlp_neurons + (messages.irreps.num_irreps,),
-        self.mlp_activation,
-        output_activation=False,
-    )(
-        edge_attrs.filter(keep="0e")
-    )  # [n_edges, num_irreps]
-
-    messages = messages * mix  # [n_edges, irreps]
-
-    zeros = e3nn.zeros(messages.irreps, node_feats.shape[:1], messages.dtype)
-    node_feats = zeros.at[receivers].add(messages)  # [n_nodes, irreps]
-
-    node_feats = node_feats / jnp.sqrt(self.avg_num_neighbors)
-
-    node_feats = Linear(self.target_irreps, name="linear_down")(node_feats)
-
-    return node_feats
+    pass
 
 
 class MessagePassingConvolutionHaiku(hk.Module):

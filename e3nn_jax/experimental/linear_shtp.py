@@ -1,9 +1,3 @@
-"""Implementation of the Linear Spherical Harmonics Tensor Product.
-
-Motivated by the paper: https://arxiv.org/pdf/2302.03655.pdf
-
-- Added the support of inversion symmetry. (Mario Geiger)
-"""
 
 from typing import Sequence
 
@@ -15,22 +9,6 @@ import e3nn_jax as e3nn
 
 
 class LinearSHTP(flax.linen.Module):
-    r"""Linear Spherical Harmonics Tensor Product.
-
-    Computes a linear combination linearly equivalent to the following.
-
-    .. math::
-
-        \sum_{l=0}^{\infty} w^l x \otimes Y^l(\vec d)
-
-    where :math:`w^l` are some weights, :math:`x` is the input, :math:`Y^l` are the spherical harmonics
-    of the direction :math:`\vec d`.
-
-    Args:
-        irreps_out: input irreps, acts as a filter if `mix` is False.
-        mix: if True, the output is a linear combination of the input, otherwise each output
-            is kept separate.
-    """
 
     irreps_out: e3nn.Irreps
     mix: bool = True
@@ -48,7 +26,6 @@ class LinearSHTP(flax.linen.Module):
         assert ird in ["1o", "1e"]
         direction = e3nn.IrrepsArray(direction.irreps, normalize(direction.array))
 
-        # Avoid gimbal lock
         gimbal_lock = jnp.abs(direction.array[1]) > 0.99
 
         def fix_gimbal_lock(array, inverse):
@@ -62,7 +39,6 @@ class LinearSHTP(flax.linen.Module):
         input = fix_gimbal_lock(input, inverse=True)
         direction = fix_gimbal_lock(direction, inverse=True)
 
-        # Calculate the rotation and align the input with the vector axis
         alpha, beta = e3nn.xyz_to_angles(direction.array)
         input = input.transform_by_angles(alpha, beta, 0.0, inverse=True)
 
@@ -89,7 +65,6 @@ class LinearSHTP(flax.linen.Module):
 
                 py = irx.p * irz.p
 
-                # symmetric part
                 ly = (irx.l + irz.l) % 2
                 if ird.p**ly == py:
                     w = self.param(
@@ -116,7 +91,6 @@ class LinearSHTP(flax.linen.Module):
                         irreps_out_.append((z.shape[0], irz))
                         outputs.append(z)
 
-                # antisymmetric part
                 ly = (irx.l + irz.l + 1) % 2
                 if ird.p**ly == py and l > 0:
                     w = self.param(
@@ -156,10 +130,8 @@ class LinearSHTP(flax.linen.Module):
         out = e3nn.from_chunks(irreps_out_, outputs, (), input.dtype)
         out = out.regroup()
 
-        # Rotate back
         out = out.transform_by_angles(alpha, beta, 0.0)
 
-        # Avoid gimbal lock
         out = fix_gimbal_lock(out, inverse=False)
 
         return out
@@ -179,7 +151,6 @@ def shtp(
     assert ird in ["1o", "1e"]
     direction = e3nn.IrrepsArray(direction.irreps, normalize(direction.array))
 
-    # Avoid gimbal lock
     gimbal_lock = jnp.abs(direction.array[1]) > 0.99
 
     def fix_gimbal_lock(array, inverse):
@@ -191,7 +162,6 @@ def shtp(
     input = fix_gimbal_lock(input, inverse=True)
     direction = fix_gimbal_lock(direction, inverse=True)
 
-    # Calculate the rotation and align the input with the vector axis
     alpha, beta = e3nn.xyz_to_angles(direction.array)
     input = input.transform_by_angles(alpha, beta, 0.0, inverse=True)
 
@@ -215,7 +185,6 @@ def shtp(
 
             py = irx.p * irz.p
 
-            # symmetric part
             ly = (irx.l + irz.l) % 2
             if ird.p**ly == py:
                 zeros = jnp.zeros_like(x, shape=(mulx, l + 1, irz.dim))
@@ -230,7 +199,6 @@ def shtp(
                 irreps_out.append((z.shape[0], irz))
                 outputs.append(z)
 
-            # antisymmetric part
             ly = (irx.l + irz.l + 1) % 2
             if ird.p**ly == py and l > 0:
                 zeros = jnp.zeros_like(x, shape=(mulx, l, irz.dim))
@@ -248,10 +216,8 @@ def shtp(
     out = e3nn.from_chunks(irreps_out, outputs, (), x.dtype)
     out = out.regroup()
 
-    # Rotate back
     out = out.transform_by_angles(alpha, beta, 0.0)
 
-    # Avoid gimbal lock
     out = fix_gimbal_lock(out, inverse=False)
 
     return out

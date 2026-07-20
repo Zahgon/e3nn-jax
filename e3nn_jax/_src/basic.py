@@ -181,7 +181,6 @@ def _reduce(
         return array
 
     if axis[-1] < array.ndim - 1:
-        # irrep dimension is not affected by mean
         return e3nn.IrrepsArray(
             array.irreps,
             op(array.array, axis=axis, keepdims=keepdims),
@@ -235,30 +234,7 @@ def sum_(
     axis: Union[None, int, Tuple[int, ...]] = None,
     keepdims: bool = False,
 ) -> e3nn.IrrepsArray:
-    """Sum of IrrepsArray along the specified axis.
-
-    Args:
-        array (`IrrepsArray`): input array
-        axis (optional int or tuple of ints): axis along which the sum is computed.
-
-    Returns:
-        `IrrepsArray`: sum of the input array
-
-    Examples:
-        >>> x = e3nn.IrrepsArray("3x0e + 2x0e", jnp.arange(2 * 5).reshape(2, 5))
-        >>> e3nn.sum(x, axis=0)
-        3x0e+2x0e [ 5  7  9 11 13]
-        >>> e3nn.sum(x, axis=1)
-        1x0e+1x0e
-        [[ 3  7]
-         [18 17]]
-        >>> e3nn.sum(x)
-        1x0e+1x0e [21 24]
-        >>> e3nn.sum(x.regroup())
-        1x0e [45]
-    """
-    jnp = _infer_backend(array.array)
-    return _reduce(jnp.sum, array, axis, keepdims)
+    pass
 
 
 def concatenate(arrays: List[e3nn.IrrepsArray], axis: int = -1) -> e3nn.IrrepsArray:

@@ -8,19 +8,6 @@ import e3nn_jax as e3nn
 
 
 class MultiLayerPerceptron(hk.Module):
-    """Just a simple MLP for scalars. No equivariance here.
-
-    Args:
-        list_neurons (list of int): number of neurons in each layer (excluding the input layer)
-        act (optional callable): activation function
-        gradient_normalization (str or float): normalization of the gradient
-
-            - "element": normalization done in initialization variance of the weights, (the default in pytorch)
-                gives the same importance to each neuron, a layer with more neurons will have a higher importance
-                than a layer with less neurons
-            - "path" (default): normalization done explicitly in the forward pass,
-                gives the same importance to every layer independently of the number of neurons
-    """
 
     def __init__(
         self,

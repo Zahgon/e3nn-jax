@@ -8,7 +8,7 @@ import e3nn_jax as e3nn
 
 
 def _index_max(i: jax.Array, x: jax.Array, out_dim: int) -> jax.Array:
-    return jnp.zeros((out_dim,) + x.shape[1:], x.dtype).at[i].max(x)
+    pass
 
 
 class Transformer(hk.Module):

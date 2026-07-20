@@ -7,23 +7,6 @@ from .bn import batch_norm
 
 
 class BatchNorm(hk.Module):
-    """Equivariant Batch Normalization.
-
-    It normalizes by the norm of the representations.
-    Note that the norm is invariant only for orthonormal representations.
-    Irreducible representations are orthonormal.
-
-    Args:
-        irreps: Irreducible representations of the input and output (unchanged)
-        eps (float): epsilon for numerical stability, has to be between 0 and 1.
-            the field norm is transformed to ``(1 - eps) * norm + eps``
-            leading to a slower convergence toward norm 1.
-        momentum: momentum for moving average
-        affine: whether to include learnable weights and biases
-        reduce: reduce mode, either 'mean' or 'max'
-        instance: whether to use instance normalization instead of batch normalization
-        normalization: normalization mode, either 'norm' or 'component'
-    """
 
     def __init__(
         self,
@@ -38,7 +21,6 @@ class BatchNorm(hk.Module):
     ):
         super().__init__()
 
-        # TODO test with and without irreps argument given
 
         self.irreps = e3nn.Irreps(irreps) if irreps is not None else irreps
         self.eps = eps

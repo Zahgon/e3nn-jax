@@ -1,10 +1,3 @@
-"""
-History of the different versions of the code:
-- Initially developed by Mario Geiger in `e3nn`
-- Ported in julia by Song Kim https://github.com/songk42/ReducedTensorProduct.jl
-- Ported in `e3nn-jax` by Mario Geiger
-- Optimized the symmetric case by Ameya Daigavane and Mario Geiger
-"""
 
 import functools
 import itertools
@@ -209,7 +202,6 @@ def _reduced_tensor_product_basis(
     epsilon: float,
     _use_optimized_implementation: bool,
 ) -> e3nn.IrrepsArray:
-    # Optimized case
     if (
         _use_optimized_implementation
         and perm_repr == _symmetric_perm_repr(len(irreps_tuple))
@@ -222,7 +214,6 @@ def _reduced_tensor_product_basis(
             )
         )
 
-    # General case
     dims = tuple(irreps.dim for irreps in irreps_tuple)
 
     bases = [
@@ -264,7 +255,6 @@ def _reduced_tensor_product_basis(
             ab = constrain_rotation_basis_by_permutation_basis(ab, p, epsilon=epsilon)
             return _rounding(ab.regroup())
 
-        # greedy algorithm
         min_p = np.inf
         best = None
 
@@ -431,7 +421,6 @@ def _optimized_reduced_symmetric_tensor_product_basis(
     irreps = e3nn.Irreps(irreps)
     irreps = e3nn.Irreps([(1, ir) for mul, ir in irreps for _ in range(mul)])
 
-    # Precompute powers of irreps.
     irreps_powers = {}
     for i, mul_ir in enumerate(irreps):
         irreps_powers[i] = [e3nn.IrrepsArray("0e", np.asarray([1.0]))]
@@ -442,21 +431,6 @@ def _optimized_reduced_symmetric_tensor_product_basis(
             )
             irreps_powers[i].append(power)
 
-    # Take all products of irreps whose powers sum up to degree.
-    # For example, if we are computing (ir1 + ir2)^3, we would consider terms of the form:
-    # - ir_1 ir_1 ir_1
-    # - ir_1 ir_1 ir_2, ir_1 ir_2 ir_1, ir_2 ir_1 ir_1
-    # - ir_1 ir_2 ir_2, ir_2 ir_1 ir_2, ir_2 ir_2 ir_1
-    # - ir_2 ir_2 ir_2
-    # where the terms on the same line will be averaged over.
-    # Each line above corresponds to a unique tuple:
-    # - (3, 0)
-    # - (2, 1)
-    # - (1, 2)
-    # - (0, 3)
-    # indicating the powers of the individual irreps ir_1 and ir_2.
-    # Note that possible many terms correspond to the same tuple,
-    # since the tuple does not indicate the degree of multiplication.
     symmetric_product = []
     for term_powers in generate_tuples_with_fixed_sum(len(irreps), degree):
         term_powers = list(term_powers)
@@ -467,7 +441,6 @@ def _optimized_reduced_symmetric_tensor_product_basis(
             repeat_indices(non_zero_indices, non_zero_powers)
         )
 
-        # Add axes to all terms, so that they have the same number of input axes.
         non_zero_terms = [
             irreps_powers[i][n] for i, n in zip(non_zero_indices, non_zero_powers)
         ]
@@ -475,7 +448,6 @@ def _optimized_reduced_symmetric_tensor_product_basis(
             non_zero_terms, non_zero_powers
         )
 
-        # Compute basis product, two terms at a time.
         if len(non_zero_terms_reshaped) == 1:
             product_basis = non_zero_terms_reshaped[0].filter(keep=keep_ir)
         else:
@@ -494,22 +466,17 @@ def _optimized_reduced_symmetric_tensor_product_basis(
         sum_of_permuted_bases = np.zeros_like(product_basis.array, shape=shape)
         seen_permutations = set()
 
-        # Now, average over the different permutations.
         for permuted_indices_repeated, permuted_axes in generate_permutations(
             non_zero_indices_repeated
         ):
-            # Keep track of which permutations we have seen.
-            # Don't repeat permutations!
             if permuted_indices_repeated in seen_permutations:
                 continue
             seen_permutations.add(permuted_indices_repeated)
 
-            # Permute axes according to this term.
             permuted_product_basis_array = np.transpose(
                 product_basis.array, permuted_axes + (len(permuted_axes),)
             )
 
-            # Add padding.
             padding = compute_padding_for_term(permuted_indices_repeated)
             slices = tuple(
                 slice(start, total - stop)
@@ -518,7 +485,6 @@ def _optimized_reduced_symmetric_tensor_product_basis(
 
             sum_of_permuted_bases[slices] += permuted_product_basis_array
 
-        # Normalize the sum of bases.
         symmetrized_sum_of_permuted_bases = sum_of_permuted_bases / np.sqrt(
             len(seen_permutations)
         )
@@ -527,7 +493,6 @@ def _optimized_reduced_symmetric_tensor_product_basis(
         )
         symmetric_product.append(product_basis)
 
-    # Filter out irreps, if needed.
     basis = e3nn.concatenate(symmetric_product)
     basis = basis.sort()
     basis = e3nn.IrrepsArray(basis.irreps.simplify(), basis.array)
@@ -551,15 +516,10 @@ def germinate_perm_repr(
         if len(f0) != len(f):
             raise RuntimeError(f"{f0} and {f} don't have the same number of indices")
 
-    # `perm_repr` is a list of (sign, permutation of indices)
-    # each formula can be viewed as a permutation of the original formula
     perm_repr = {
         (s, tuple(f.index(i) for i in f0)) for s, f in formulas
     }  # set of generators (permutations)
 
-    # they can be composed, for instance if you have ijk=jik=ikj
-    # you also have ijk=jki
-    # applying all possible compositions creates an entire group
     while True:
         n = len(perm_repr)
         perm_repr = perm_repr.union([(s, perm.inverse(p)) for s, p in perm_repr])
@@ -645,9 +605,7 @@ def constrain_rotation_basis_by_permutation_basis(
         R = rot_basis[..., 0]
         R = np.reshape(R, (-1, mul)).T  # (mul, dim)
 
-        # optimization:
         perm_opt = perm[~np.all(perm[:, ~np.all(R == 0, axis=0)] == 0, axis=1)]
-        # NOTE: this optimization work only because perm rows don't share non-zero elements
 
         P, _ = basis_intersection(R, perm_opt, epsilon=epsilon, round_fn=round_fn)
 
@@ -704,22 +662,13 @@ def reduce_permutation_base(
     perm_repr: FrozenSet[Tuple[int, Tuple[int, ...]]], dims: Tuple[int, ...]
 ) -> FrozenSet[FrozenSet[FrozenSet[Tuple[int, Tuple[int, ...]]]]]:
     full_base = full_base_fn(dims)  # (0, 0, 0), (0, 0, 1), (0, 0, 2), ... (3, 3, 3)
-    # len(full_base) degrees of freedom in an unconstrained tensor
 
-    # but there is constraints given by the group `formulas`
-    # For instance if `ij=-ji`, then 00=-00, 01=-01 and so on
     base = set()
     for x in full_base:
-        # T[x] is a coefficient of the tensor T and is related to other coefficient T[y]
-        # if x and y are related by a formula
         xs = {(s, tuple(x[i] for i in p)) for s, p in perm_repr}
-        # s * T[x] are all equal for all (s, x) in xs
-        # if T[x] = -T[x] it is then equal to 0 and we lose this degree of freedom
         if not (-1, x) in xs:
-            # the sign is arbitrary, put both possibilities
             base.add(frozenset({frozenset(xs), frozenset({(-s, x) for s, x in xs})}))
 
-    # len(base) is the number of degrees of freedom in the tensor.
 
     return frozenset(base)
 
@@ -733,7 +682,6 @@ def reduce_permutation_matrix(
         [sorted([sorted(xs) for xs in x]) for x in base]
     )  # requested for python 3.7 but not for 3.8 (probably a bug in 3.7)
 
-    # First we compute the change of basis (projection) between full_base and base
     d_sym = len(base)
     Q = np.zeros((d_sym, prod(dims)), np.float64)
 
@@ -752,6 +700,4 @@ def reduce_permutation_matrix(
 
 
 def _rounding(x: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
-    # print(round_to_sqrt_rational(1/2 + 1e-13, 2**20) == 0.5)  # True
-    # print(round_to_sqrt_rational(1/2 + 1e-12, 2**20) == 0.5)  # False
     return e3nn.IrrepsArray(x.irreps, round_to_sqrt_rational(x.array, 2**20))

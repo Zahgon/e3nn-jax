@@ -251,11 +251,7 @@ def _scatter_op(
         dst = _distinct_but_small(dst)
 
     def _op(x):
-        z = initial * jnp.ones((output_size,) + x.shape[dst.ndim :], x.dtype)
-        if op == "sum":
-            return z.at[(dst,)].add(x, indices_are_sorted=indices_are_sorted, mode=mode)
-        elif op == "max":
-            return z.at[(dst,)].max(x, indices_are_sorted=indices_are_sorted, mode=mode)
+        pass
 
     output = jax.tree_util.tree_map(_op, data)
 

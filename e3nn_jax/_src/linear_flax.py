@@ -20,53 +20,6 @@ from .linear import (
 
 
 class Linear(flax.linen.Module):
-    r"""Equivariant Linear Flax module
-
-    Args:
-        irreps_out (`Irreps`): output representations, if allowed bu Schur's lemma.
-        channel_out (optional int): if specified, the last axis before the irreps
-            is assumed to be the channel axis and is mixed with the irreps.
-        irreps_in (optional `Irreps`): input representations. If not specified,
-            the input representations is obtained when calling the module.
-        biases (bool): whether to add a bias to the output.
-        path_normalization (str or float): Normalization of the paths, ``element`` or ``path``.
-            0/1 corresponds to a normalization where each element/path has an equal contribution to the forward.
-        gradient_normalization (str or float): Normalization of the gradients, ``element`` or ``path``.
-            0/1 corresponds to a normalization where each element/path has an equal contribution to the learning.
-        num_indexed_weights (optional int): number of indexed weights. See example below.
-        weights_per_channel (bool): whether to have one set of weights per channel.
-        force_irreps_out (bool): whether to force the output irreps to be the one specified in ``irreps_out``.
-
-    Examples:
-        Vanilla::
-
-            >>> import e3nn_jax as e3nn
-            >>> import jax
-            >>>
-            >>> linear = Linear("2x0e + 1o + 2e")
-            >>> x = e3nn.normal("0e + 1o")
-            >>> w = linear.init(jax.random.PRNGKey(0), x)
-            >>> linear.apply(w, x).irreps  # Note that the 2e is discarded
-            2x0e+1x1o
-            >>> linear.apply(w, x).shape
-            (5,)
-
-        External weights::
-
-            >>> linear = Linear("2x0e + 1o")
-            >>> e = jnp.array([1., 2., 3., 4.])
-            >>> w = linear.init(jax.random.PRNGKey(0), e, x)
-            >>> linear.apply(w, e, x).shape
-            (5,)
-
-        Indexed weights::
-
-            >>> linear = Linear("2x0e + 1o", num_indexed_weights=3)
-            >>> i = jnp.array(2)
-            >>> w = linear.init(jax.random.PRNGKey(0), i, x)
-            >>> linear.apply(w, i, x).shape
-            (5,)
-    """
 
     irreps_out: e3nn.Irreps
     irreps_in: Optional[e3nn.Irreps] = None
@@ -151,13 +104,7 @@ class Linear(flax.linen.Module):
                 Callable[[], jax.nn.initializers.Initializer]
             ] = None,
         ):
-            # Default is to initialize the weights with a normal distribution.
-            if parameter_initializer is None:
-                parameter_initializer = lambda: flax.linen.initializers.normal(
-                    stddev=weight_std
-                )
-
-            return self.param(name, parameter_initializer(), path_shape, dtype)
+            pass
 
         get_parameter = functools.partial(
             _get_parameter, parameter_initializer=self.parameter_initializer

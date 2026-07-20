@@ -37,28 +37,16 @@ def vmap(
         raise ValueError("out_axes=-1 is not supported by e3nn.vmap")
 
     def to_via(x):
-        return _VIA(x) if isinstance(x, e3nn.IrrepsArray) else x
+        pass
 
     def from_via(x):
-        return x.a if isinstance(x, _VIA) else x
+        pass
 
     def inside_fun(*args, **kwargs):
-        args, kwargs = jax.tree_util.tree_map(
-            from_via, (args, kwargs), is_leaf=lambda x: isinstance(x, _VIA)
-        )
-        out = fun(*args, **kwargs)
-        return jax.tree_util.tree_map(
-            to_via, out, is_leaf=lambda x: isinstance(x, e3nn.IrrepsArray)
-        )
+        pass
 
     def outside_fun(*args, **kwargs):
-        args, kwargs = jax.tree_util.tree_map(
-            to_via, (args, kwargs), is_leaf=lambda x: isinstance(x, e3nn.IrrepsArray)
-        )
-        out = jax.vmap(inside_fun, in_axes, out_axes)(*args, **kwargs)
-        return jax.tree_util.tree_map(
-            from_via, out, is_leaf=lambda x: isinstance(x, _VIA)
-        )
+        pass
 
     return outside_fun
 

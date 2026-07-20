@@ -6,27 +6,6 @@ from e3nn_jax import Irreps, IrrepsArray
 
 
 class Dropout(hk.Module):
-    r"""Equivariant Dropout.
-
-    :math:`A_{zai}` is the input and :math:`B_{zai}` is the output where
-    - ``z`` is the batch index
-    - ``a`` any non-batch and non-irrep index
-    - ``i`` is the irrep index, for instance if ``irreps="0e + 2x1e"`` then ``i=2`` select the *second vector*
-
-    .. math::
-
-        B_{zai} = \frac{x_{zi}}{1-p} A_{zai}
-
-
-    where :math:`p` is the dropout probability and :math:`x` is a Bernoulli random variable with parameter :math:`1-p`.
-
-    Args:
-        irreps (`Irreps`): the irrep string
-        p (float): dropout probability
-
-    Returns:
-        `Dropout`: the dropout module
-    """
 
     def __init__(self, p, *, irreps=None):
         super().__init__()

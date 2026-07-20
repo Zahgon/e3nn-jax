@@ -19,88 +19,10 @@ from .linear import (
 def _get_gradient_normalization(
     gradient_normalization: Optional[Union[float, str]],
 ) -> float:
-    """Get the gradient normalization from the config or from the argument."""
-    if gradient_normalization is None:
-        gradient_normalization = e3nn.config("gradient_normalization")
-    if isinstance(gradient_normalization, str):
-        return {"element": 0.0, "path": 1.0}[gradient_normalization]
-    return gradient_normalization
+    pass
 
 
 class Linear(eqx.Module):
-    r"""Equivariant Linear Equinox module
-
-    Args:
-        irreps_out (`Irreps`): output representations, if allowed bu Schur's lemma.
-        channel_out (optional int): if specified, the last axis before the irreps
-            is assumed to be the channel axis and is mixed with the irreps.
-        irreps_in (`Irreps`): input representations. If not specified,
-            the input representations is obtained when calling the module.
-        channel_in (optional int): required when using 'mixed_per_channel' linear_type,
-            indicating the size of the last axis before the irreps in the input.
-        biases (bool): whether to add a bias to the output.
-        path_normalization (str or float): Normalization of the paths, ``element`` or ``path``.
-            0/1 corresponds to a normalization where each element/path has an equal contribution to the forward.
-        gradient_normalization (str or float): Normalization of the gradients, ``element`` or ``path``.
-            0/1 corresponds to a normalization where each element/path has an equal contribution to the learning.
-        num_indexed_weights (optional int): number of indexed weights. See example below.
-        weights_per_channel (bool): whether to have one set of weights per channel.
-        force_irreps_out (bool): whether to force the output irreps to be the one specified in ``irreps_out``.
-
-    Due to how Equinox is implemented, the random key, irreps_in and irreps_out must be supplied at initialization.
-    The type of the linear layer must also be supplied at initialization:
-    'vanilla', 'indexed', 'mixed', 'mixed_per_channel'
-    Also, depending on what type of linear layer is used, additional options
-    (eg. 'num_indexed_weights', 'weights_per_channel', 'weights_dim', 'channel_in')
-    must be supplied.
-
-    Examples:
-        Vanilla::
-
-            >>> import e3nn_jax as e3nn
-            >>> import jax
-
-            >>> x = e3nn.normal("0e + 1o")
-            >>> linear = e3nn.equinox.Linear(
-                    irreps_out="2x0e + 1o + 2e",
-                    irreps_in=x.irreps,
-                    key=jax.random.PRNGKey(0),
-                )
-            >>> linear(x).irreps  # Note that the 2e is discarded. Avoid this by setting force_irreps_out=True.
-            2x0e+1x1o
-            >>> linear(x).shape
-            (5,)
-
-        External weights::
-
-            >>> linear = e3nn.equinox.Linear(
-                    irreps_out="2x0e + 1o",
-                    irreps_in=x.irreps,
-                    linear_type="mixed",
-                    weights_dim=4,
-                    key=jax.random.PRNGKey(0),
-                )
-            >>> e = jnp.array([1., 2., 3., 4.])
-            >>> linear(e, x).irreps
-                2x0e+1x1o
-            >>> linear(e, x).shape
-            (5,)
-
-        Indexed weights::
-
-            >>> linear = e3nn.equinox.Linear(
-                    irreps_out="2x0e + 1o + 2e",
-                    irreps_in=x.irreps,
-                    linear_type="indexed",
-                    num_indexed_weights=3,
-                    key=jax.random.PRNGKey(0),
-                )
-            >>> i = jnp.array(2)
-            >>> linear(i, x).irreps
-                2x0e+1x1o
-            >>> linear(i, x).shape
-            (5,)
-    """
 
     irreps_out: e3nn.Irreps = eqx.field(static=True)
     irreps_in: e3nn.Irreps = eqx.field(static=True)
@@ -115,7 +37,6 @@ class Linear(eqx.Module):
     weights_dim: Optional[int] = eqx.field(static=True)
     linear_type: str = eqx.field(static=True)
 
-    # These are used internally.
     _linear: FunctionalLinear = eqx.field(static=True)
     _weights: Dict[str, jax.Array]
     _input_dtype: jnp.dtype = eqx.field(static=True)
@@ -177,58 +98,7 @@ class Linear(eqx.Module):
         self._weights = self._get_weights(key)
 
     def _get_weights(self, key: jax.Array):
-        """Constructs the weights for the linear module."""
-        irreps_in = self._linear.irreps_in
-        irreps_out = self._linear.irreps_out
-
-        weights = {}
-        for ins in self._linear.instructions:
-            weight_key, key = jax.random.split(key)
-            if ins.i_in == -1:
-                name = f"b[{ins.i_out}] {irreps_out[ins.i_out]}"
-            else:
-                name = f"w[{ins.i_in},{ins.i_out}] {irreps_in[ins.i_in]},{irreps_out[ins.i_out]}"
-
-            if self.linear_type == "vanilla":
-                weight_shape = ins.path_shape
-                weight_std = ins.weight_std
-
-            if self.linear_type == "indexed":
-                if self.num_indexed_weights is None:
-                    raise ValueError(
-                        "num_indexed_weights must be provided when 'linear_type' is 'indexed'"
-                    )
-
-                weight_shape = (self.num_indexed_weights,) + ins.path_shape
-                weight_std = ins.weight_std
-
-            if self.linear_type in ["mixed", "mixed_per_channel"]:
-                if self.weights_dim is None:
-                    raise ValueError(
-                        "weights_dim must be provided when 'linear_type' is 'mixed'"
-                    )
-
-                d = self.weights_dim
-                if self.linear_type == "mixed":
-                    weight_shape = (d,) + ins.path_shape
-
-                if self.linear_type == "mixed_per_channel":
-                    if self.channel_in is None:
-                        raise ValueError(
-                            "channel_in must be provided when 'linear_type' is 'mixed_per_channel'"
-                        )
-                    weight_shape = (d, self.channel_in) + ins.path_shape
-
-                alpha = 1 / d
-                stddev = jnp.sqrt(alpha) ** (1.0 - self.gradient_normalization)
-                weight_std = stddev * ins.weight_std
-
-            weights[name] = weight_std * jax.random.normal(
-                weight_key,
-                weight_shape,
-                self._input_dtype,
-            )
-        return weights
+        pass
 
     def __call__(self, weights_or_input, input_or_none=None) -> e3nn.IrrepsArray:
         """Apply the linear operator.
@@ -279,8 +149,7 @@ class Linear(eqx.Module):
             weight_std: float,
             dtype: jnp.dtype = jnp.float32,
         ):
-            del path_shape, weight_std, dtype
-            return self._weights[name]
+            pass
 
         assertion_message = (
             "Weights cannot be provided when 'linear_type' is 'vanilla'."

@@ -10,31 +10,10 @@ from .bn import batch_norm
 
 
 def first_nonnone(*args):
-    for arg in args:
-        if arg is not None:
-            return arg
-    return None
+    pass
 
 
 class BatchNorm(nn.Module):
-    """Equivariant Batch Normalization.
-
-    It normalizes by the norm of the representations.
-    Note that the norm is invariant only for orthonormal representations.
-    Irreducible representations are orthonormal.
-
-    Args:
-        use_running_average: if True, the statistics stored in batch_stats will be
-            used instead of computing the batch statistics on the input.
-        eps (float): epsilon for numerical stability, has to be between 0 and 1.
-            the field norm is transformed to ``(1 - eps) * norm + eps``
-            leading to a slower convergence toward norm 1.
-        momentum: momentum for moving average
-        affine: whether to include learnable weights and biases
-        reduce: reduce mode, either 'mean' or 'max'
-        instance: whether to use instance normalization instead of batch normalization
-        normalization: normalization mode, either 'norm' or 'component'
-    """
 
     use_running_average: Optional[bool] = None
     eps: float = 1e-4
@@ -84,8 +63,6 @@ class BatchNorm(nn.Module):
         )
 
         if use_running_average and self.instance:
-            # If instance, we can't use running average because the mean and variance
-            # are different for each instance (i.e. they have a batch dimension)
             raise ValueError("If instance is True, use_running_average must be False")
 
         dtype = input.dtype

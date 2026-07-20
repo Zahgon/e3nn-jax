@@ -1,4 +1,3 @@
-"""Defines the functional tensor product."""
 
 import collections
 import itertools
@@ -19,7 +18,6 @@ from e3nn_jax._src.utils.sum_tensors import sum_tensors
 
 @dataclass(init=True, repr=True, eq=True, order=False, unsafe_hash=False, frozen=True)
 class Instruction:
-    """Defines an instruction for a tensor product."""
 
     i_in1: int
     i_in2: int
@@ -111,28 +109,6 @@ class Instruction:
 
 
 class FunctionalTensorProduct:
-    r"""Tensor product of two tensors.
-
-    Args:
-        irreps_in1: :class:`~e3nn_jax.Irreps` of the first tensor.
-        irreps_in2: :class:`~e3nn_jax.Irreps` of the second tensor.
-        irreps_out: :class:`~e3nn_jax.Irreps` of the output tensor.
-        instructions: List of instructions.
-            ``[(i_in1, i_in2, i_out, connection_mode, has_weight, (path_weight)), ...]``
-            - i_in1, i_in2, i_out are indices of the irreps_in1, irreps_in2, irreps_out.
-            - connection_mode is one of ``uvw``, ``uvu``, ``uvv``, ``uuw``, ``uuu``, ``uvuv``
-            - has_weight is a boolean indicating whether the instruction has a weight.
-            - path_weight (optional, 1.0 by default) is the weight of the path.
-
-        in1_var: Variance of the first tensor.
-        in2_var: Variance of the second tensor.
-        out_var: Variance of the output tensor.
-        irrep_normalization: Normalization of the tensors. ``component`` or ``norm``.
-        path_normalization (str or float): Normalization of the paths, ``element`` or ``path``.
-            0/1 corresponds to a normalization where each element/path has an equal contribution to the forward propagation.
-        gradient_normalization (str or float): Normalization of the gradients, ``element`` or ``path``.
-            0/1 corresponds to a normalization where each element/path has an equal contribution to the learning.
-    """
 
     irreps_in1: e3nn.Irreps
     irreps_in2: e3nn.Irreps
@@ -281,28 +257,7 @@ class FunctionalTensorProduct:
         *,
         custom_einsum_jvp=None,
     ) -> jax.Array:
-        r"""Compute the right contraction of the tensor product.
-
-        Args:
-            weights (array or list of arrays): The weights of the tensor product.
-            input2 (IrrepsArray): The second input tensor.
-            custom_einsum_jvp (bool): If True, use the custom jvp for the einsum code.
-
-        Returns:
-            A matrix of shape ``(irreps_in1.dim, irreps_out.dim)``.
-        """
-        if custom_einsum_jvp is None:
-            custom_einsum_jvp = e3nn.config("custom_einsum_jvp")
-
-        if input2 is None:
-            weights, input2 = [], weights
-
-        return _right(
-            self,
-            weights,
-            input2.rechunk(self.irreps_in2),
-            custom_einsum_jvp=custom_einsum_jvp,
-        )
+        pass
 
     def __repr__(self):
         npath = sum(prod(i.path_shape) for i in self.instructions)
@@ -334,68 +289,7 @@ def _normalize_instruction_path_weights(
     path_normalization_exponent: float,
     gradient_normalization_exponent: float,
 ) -> List[Instruction]:
-    """Returns instructions with normalized path weights."""
-
-    def var(instruction):
-        return (
-            first_input_variance[instruction.i_in1]
-            * second_input_variance[instruction.i_in2]
-            * instruction.num_elements
-        )
-
-    # Precompute normalization factors.
-    path_normalization_sums = collections.defaultdict(lambda: 0.0)
-    for instruction in instructions:
-        path_normalization_sums[instruction.i_out] += var(instruction) ** (
-            1.0 - path_normalization_exponent
-        )
-
-    path_normalization_factors = {
-        instruction: var(instruction) ** path_normalization_exponent
-        * path_normalization_sums[instruction.i_out]
-        for instruction in instructions
-    }
-
-    def update(instruction: Instruction) -> float:
-        """Computes normalized path weight for a single instructions, with precomputed path normalization factors."""
-
-        if irrep_normalization not in ["component", "norm", "none"]:
-            raise ValueError(f"Unsupported irrep normalization: {irrep_normalization}.")
-
-        mul_ir_in1 = first_input_irreps[instruction.i_in1]
-        mul_ir_in2 = second_input_irreps[instruction.i_in2]
-        mul_ir_out = output_irreps[instruction.i_out]
-
-        assert mul_ir_in1.ir.p * mul_ir_in2.ir.p == mul_ir_out.ir.p
-        assert (
-            abs(mul_ir_in1.ir.l - mul_ir_in2.ir.l)
-            <= mul_ir_out.ir.l
-            <= mul_ir_in1.ir.l + mul_ir_in2.ir.l
-        )
-
-        if irrep_normalization == "component":
-            alpha = mul_ir_out.ir.dim
-        if irrep_normalization == "norm":
-            alpha = mul_ir_in1.ir.dim * mul_ir_in2.ir.dim
-        if irrep_normalization == "none":
-            alpha = 1
-
-        x = path_normalization_factors[instruction]
-        if x > 0.0:
-            alpha /= x
-
-        alpha *= output_variance[instruction.i_out]
-        alpha *= instruction.path_weight
-
-        if instruction.has_weight:
-            return instruction.replace(
-                path_weight=sqrt(alpha) ** gradient_normalization_exponent,
-                weight_std=sqrt(alpha) ** (1.0 - gradient_normalization_exponent),
-            )
-        else:
-            return instruction.replace(path_weight=sqrt(alpha))
-
-    return [update(instruction) for instruction in instructions]
+    pass
 
 
 @partial(jax.profiler.annotate_function, name="TensorProduct.left_right")
@@ -495,8 +389,6 @@ def _block_left_right(
             weight_index += 1
 
         if mul_ir_in1.dim == 0 or mul_ir_in2.dim == 0 or mul_ir_out.dim == 0:
-            # TODO verify that there is no need for
-            # out_list += [None]
             continue
 
         x1 = input1.chunks[ins.i_in1]
@@ -521,21 +413,18 @@ def _block_left_right(
             if ins.has_weight:
                 out = einsum("uv,ijk,ui,vj->uk", w, w3j, x1, x2)
             else:
-                # not so useful operation because v is summed
                 out = einsum("ijk,ui,vj->uk", w3j, x1, x2)
         if ins.connection_mode == "uvv":
             assert mul_ir_in2.mul == mul_ir_out.mul
             if ins.has_weight:
                 out = einsum("uv,ijk,ui,vj->vk", w, w3j, x1, x2)
             else:
-                # not so useful operation because u is summed
                 out = einsum("ijk,ui,vj->vk", w3j, x1, x2)
         if ins.connection_mode == "uuw":
             assert mul_ir_in1.mul == mul_ir_in2.mul
             if ins.has_weight:
                 out = einsum("uw,ijk,ui,uj->wk", w, w3j, x1, x2)
             else:
-                # equivalent to tp(x, y, 'uuu').sum('u')
                 assert mul_ir_out.mul == 1
                 out = einsum("ijk,ui,uj->k", w3j, x1, x2)
         if ins.connection_mode == "uuu":
@@ -700,119 +589,4 @@ def _right(
     *,
     custom_einsum_jvp: bool = False,
 ) -> jax.Array:
-    dtype = get_pytree_dtype(weights, input2)
-    if dtype.kind == "i":
-        dtype = jnp.float32
-
-    # = Short-circut for zero dimensional =
-    if self.irreps_in1.dim == 0 or self.irreps_in2.dim == 0 or self.irreps_out.dim == 0:
-        return jnp.zeros(
-            (
-                self.irreps_in1.dim,
-                self.irreps_out.dim,
-            ),
-            dtype=dtype,
-        )
-
-    einsum = opt_einsum if custom_einsum_jvp else jnp.einsum
-
-    weight_index = 0
-
-    out_list = []
-
-    for ins in self.instructions:
-        mul_ir_in1 = self.irreps_in1[ins.i_in1]
-        mul_ir_in2 = self.irreps_in2[ins.i_in2]
-        mul_ir_out = self.irreps_out[ins.i_out]
-
-        x2 = input2.chunks[ins.i_in2]
-
-        if ins.has_weight:
-            w = weights[weight_index]
-            assert w.shape == ins.path_shape, (
-                w.shape,
-                ins.path_shape,
-                weight_index,
-                ins,
-            )
-            weight_index += 1
-
-        if mul_ir_in1.dim == 0 or mul_ir_in2.dim == 0 or mul_ir_out.dim == 0:
-            # TODO add tests for this case
-            out_list += [jnp.zeros((mul_ir_in1.dim, mul_ir_out.dim), dtype=dtype)]
-            continue
-
-        with jax.ensure_compile_time_eval():
-            w3j = e3nn.clebsch_gordan(mul_ir_in1.ir.l, mul_ir_in2.ir.l, mul_ir_out.ir.l)
-            w3j = w3j.astype(dtype)
-
-        if ins.connection_mode == "uvw":
-            assert ins.has_weight
-            out = einsum("uvw,ijk,vj->uiwk", w, w3j, x2)
-        if ins.connection_mode == "uvu":
-            assert mul_ir_in1.mul == mul_ir_out.mul
-            if ins.has_weight:
-                out = einsum("uv,ijk,vj,uw->uiwk", w, w3j, x2, jnp.eye(mul_ir_in1.mul))
-            else:
-                # not so useful operation because v is summed
-                out = einsum("ijk,vj,uw->uiwk", w3j, x2, jnp.eye(mul_ir_in1.mul))
-        if ins.connection_mode == "uvv":
-            assert mul_ir_in2.mul == mul_ir_out.mul
-            if ins.has_weight:
-                out = einsum("uv,ijk,vj->uivk", w, w3j, x2)
-            else:
-                # not so useful operation because u is summed
-                out = einsum(
-                    "ijk,vj,u->uivk", w3j, x2, jnp.ones((mul_ir_in1.mul,), dtype)
-                )
-        if ins.connection_mode == "uuw":
-            assert mul_ir_in1.mul == mul_ir_in2.mul
-            if ins.has_weight:
-                out = einsum("uw,ijk,uj->uiwk", w, w3j, x2)
-            else:
-                # equivalent to tp(x, y, 'uuu').sum('u')
-                assert mul_ir_out.mul == 1
-                out = einsum("ijk,uj->uik", w3j, x2)
-        if ins.connection_mode == "uuu":
-            assert mul_ir_in1.mul == mul_ir_in2.mul == mul_ir_out.mul
-            if ins.has_weight:
-                out = einsum("u,ijk,uj,uw->uiwk", w, w3j, x2, jnp.eye(mul_ir_in1.mul))
-            else:
-                out = einsum("ijk,uj,uw->uiwk", w3j, x2, jnp.eye(mul_ir_in1.mul))
-        if ins.connection_mode == "uvuv":
-            assert mul_ir_in1.mul * mul_ir_in2.mul == mul_ir_out.mul
-            if ins.has_weight:
-                out = einsum("uv,ijk,vj,uw->uiwvk", w, w3j, x2, jnp.eye(mul_ir_in1.mul))
-            else:
-                out = einsum("ijk,vj,uw->uiwvk", w3j, x2, jnp.eye(mul_ir_in1.mul))
-
-        out = ins.path_weight * out
-
-        out_list += [out.reshape(mul_ir_in1.dim, mul_ir_out.dim)]
-
-    output = jnp.concatenate(
-        [
-            jnp.concatenate(
-                [
-                    sum_tensors(
-                        [
-                            out
-                            for ins, out in zip(self.instructions, out_list)
-                            if (ins.i_in1, ins.i_out) == (i_in1, i_out)
-                        ],
-                        shape=(mul_ir_in1.dim, mul_ir_out.dim),
-                        dtype=dtype,
-                    )
-                    for i_out, mul_ir_out in enumerate(self.irreps_out)
-                    if mul_ir_out.mul > 0
-                ],
-                axis=1,
-            )
-            for i_in1, mul_ir_in1 in enumerate(self.irreps_in1)
-            if mul_ir_in1.mul > 0
-        ],
-        axis=0,
-    )
-
-    assert output.dtype == dtype, f"{output.dtype} != {dtype}, Please report this bug."
-    return output
+    pass

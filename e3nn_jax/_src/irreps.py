@@ -23,41 +23,6 @@ IntoIrrep = Union[int, "Irrep", "MulIrrep", Tuple[int, int]]
 
 @dataclasses.dataclass(init=False, frozen=True)
 class Irrep:
-    r"""Irreducible representation of :math:`O(3)`.
-
-    This class does not contain any data, it is a structure that describe the representation.
-    It is typically used as argument of other classes of the library to define the input and output
-    representations of functions.
-
-    Args:
-        l: non-negative integer, the degree of the representation, :math:`l = 0, 1, \dots`
-        p: {1, -1}, the parity of the representation
-
-    Examples:
-        Create a scalar representation (:math:`l=0`) of even parity.
-
-        >>> Irrep(0, 1)
-        0e
-
-        Create a pseudotensor representation (:math:`l=2`) of odd parity.
-
-        >>> Irrep(2, -1)
-        2o
-
-        Create a vector representation (:math:`l=1`) of the parity of the spherical harmonics (:math:`-1^l` gives odd parity).
-
-        >>> Irrep("1y")
-        1o
-
-        >>> Irrep("2o").dim
-        5
-
-        >>> Irrep("2e") in Irrep("1o") * Irrep("1o")
-        True
-
-        >>> Irrep("1o") + Irrep("2o")
-        1x1o+1x2o
-    """
 
     l: int
     p: int
@@ -100,44 +65,10 @@ class Irrep:
 
     @classmethod
     def iterator(cls, lmax=None):
-        r"""Iterator through all the irreps of :math:`O(3)`.
-
-        Examples:
-            >>> it = Irrep.iterator()
-            >>> next(it), next(it), next(it), next(it)
-            (0e, 0o, 1o, 1e)
-        """
-        for l in itertools.count():
-            yield Irrep(l, (-1) ** l)
-            yield Irrep(l, -((-1) ** l))
-
-            if l == lmax:
-                break
+        pass
 
     def D_from_log_coordinates(self, log_coordinates, k=0):
-        r"""Matrix :math:`p^k D^l(\alpha)`.
-
-        (matrix) Representation of :math:`O(3)`. :math:`D` is the representation of :math:`SO(3)`.
-
-        Args:
-            log_coordinates (`jax.Array`): of shape :math:`(..., 3)`
-            k (optional `jax.Array`): of shape :math:`(...)`
-                How many times the parity is applied.
-
-        Returns:
-            `jax.Array`: of shape :math:`(..., 2l+1, 2l+1)`
-
-        See Also:
-            Irreps.D_from_log_coordinates
-        """
-        k = jnp.asarray(k)
-        shape = jnp.broadcast_shapes(log_coordinates.shape[:-1], k.shape)
-        log_coordinates = jnp.broadcast_to(log_coordinates, shape + (3,))
-        k = jnp.broadcast_to(k, shape)
-        return (
-            _wigner_D_from_log_coordinates(self.l, log_coordinates)
-            * self.p ** k[..., None, None]
-        )
+        pass
 
     def D_from_angles(self, alpha, beta, gamma, k=0):
         r"""Matrix :math:`p^k D^l(\alpha, \beta, \gamma)`.
@@ -194,46 +125,13 @@ class Irrep:
         )
 
     def D_from_quaternion(self, q, k=0):
-        r"""Matrix of the representation, see `Irrep.D_from_angles`.
-
-        Args:
-            q (`jax.Array`): shape :math:`(..., 4)`
-            k (optional `jax.Array`): shape :math:`(...)`
-
-        Returns:
-            `jax.Array`: shape :math:`(..., 2l+1, 2l+1)`
-        """
-        return self.D_from_angles(*quaternion_to_angles(q), k)
+        pass
 
     def D_from_matrix(self, R):
-        r"""Matrix of the representation.
-
-        Args:
-            R (`jax.Array`): array of shape :math:`(..., 3, 3)`
-            k (`jax.Array`, optional): array of shape :math:`(...)`
-
-        Returns:
-            `jax.Array`: array of shape :math:`(..., 2l+1, 2l+1)`
-
-        Examples:
-            >>> m = Irrep(1, -1).D_from_matrix(-jnp.eye(3))
-            >>> m + 0.0
-            Array([[-1.,  0.,  0.],
-                   [ 0., -1.,  0.],
-                   [ 0.,  0., -1.]], dtype=float32)
-
-        See Also:
-            `Irrep.D_from_angles`
-        """
-        d = jnp.sign(jnp.linalg.det(R))
-        R = d[..., None, None] * R
-        k = (1 - d) / 2
-        return self.D_from_angles(*matrix_to_angles(R), k)
+        pass
 
     def D_from_axis_angle(self, axis, angle, k=0):
-        return self.D_from_log_coordinates(
-            axis_angle_to_log_coordinates(axis, angle), k
-        )
+        pass
 
     def generators(self):
         r"""Generators of the representation of :math:`SO(3)`.
@@ -248,8 +146,7 @@ class Irrep:
 
     @property
     def dim(self) -> int:
-        """The dimension of the representation, :math:`2 l + 1`."""
-        return 2 * self.l + 1
+        pass
 
     def is_scalar(self) -> bool:
         """Equivalent to ``l == 0 and p == 1``."""
@@ -308,7 +205,6 @@ jax.tree_util.register_pytree_node(Irrep, lambda ir: ((), ir), lambda ir, _: ir)
 
 @dataclasses.dataclass(init=False, frozen=True)
 class MulIrrep:
-    r"""An Irrep with a multiplicity."""
 
     mul: int
     ir: Irrep
@@ -323,8 +219,7 @@ class MulIrrep:
 
     @property
     def dim(self) -> int:
-        """The dimension of the representations."""
-        return self.mul * self.ir.dim
+        pass
 
     def __repr__(self):
         """Representation of the irrep."""
@@ -362,43 +257,6 @@ IntoIrreps = Union[
 
 
 class Irreps(tuple):
-    r"""Direct sum of irreducible representations of :math:`O(3)`.
-
-    This class does not contain any data, it is a structure that describe the representation.
-    It is typically used as argument of other classes of the library to define the input and output
-    representations of functions.
-
-    Attributes:
-        dim (int): the total dimension of the representation
-        num_irreps (int): number of irreps. the sum of the multiplicities
-        ls (list of int): list of :math:`l` values
-        lmax (int): maximum :math:`l` value
-
-    Examples:
-        >>> x = Irreps([(100, (0, 1)), (50, (1, 1))])
-        >>> x
-        100x0e+50x1e
-
-        >>> x.dim
-        250
-
-        >>> Irreps("100x0e + 50x1e")
-        100x0e+50x1e
-
-        >>> Irreps("100x0e + 50x1e + 0x2e")
-        100x0e+50x1e+0x2e
-
-        >>> Irreps("100x0e + 50x1e + 0x2e").lmax
-        1
-
-        >>> Irrep("2e") in Irreps("0e + 2e")
-        True
-
-        Empty Irreps
-
-        >>> Irreps(), Irreps("")
-        (Irreps(), Irreps())
-    """
 
     def __new__(cls, irreps: IntoIrreps = None):
         r"""Create a new Irreps object."""
@@ -692,13 +550,7 @@ class Irreps(tuple):
         return self.sort().irreps.simplify()
 
     def set_mul(self, mul: int) -> "Irreps":
-        r"""Set the multiplicities to one.
-
-        Examples:
-            >>> Irreps("2x0e + 1x1e").set_mul(1)
-            1x0e+1x1e
-        """
-        return Irreps([(mul, ir) for _, ir in self])
+        pass
 
     def filter(
         self,
@@ -707,158 +559,39 @@ class Irreps(tuple):
         drop: Union["Irreps", List[Irrep], Callable[[MulIrrep], bool]] = None,
         lmax: int = None,
     ) -> "Irreps":
-        r"""Filter the irreps.
-
-        Args:
-            keep (`Irreps` or list of `Irrep` or function): list of irrep to keep
-            drop (`Irreps` or list of `Irrep` or function): list of irrep to drop
-            lmax (int): maximum :math:`l` value
-
-        Returns:
-            `Irreps`: filtered irreps
-
-        Examples:
-            >>> Irreps("1e + 2e + 0e").filter(keep=["0e", "1e"])
-            1x1e+1x0e
-
-            >>> Irreps("1e + 2e + 0e").filter(keep="2e + 2x1e")
-            1x1e+1x2e
-
-            >>> Irreps("1e + 2e + 0e").filter(drop="2e + 2x1e")
-            1x0e
-
-            >>> Irreps("1e + 2e + 0e").filter(lmax=1)
-            1x1e+1x0e
-        """
-        if keep is None and drop is None and lmax is None:
-            return self
-        if keep is not None and drop is not None:
-            raise ValueError("Cannot specify both keep and drop")
-        if keep is not None and lmax is not None:
-            raise ValueError("Cannot specify both keep and lmax")
-        if drop is not None and lmax is not None:
-            raise ValueError("Cannot specify both drop and lmax")
-
-        if keep is not None:
-            if isinstance(keep, str):
-                keep = Irreps(keep)
-            if isinstance(keep, Irrep):
-                keep = [keep]
-            if isinstance(keep, MulIrrep):
-                keep = [keep.ir]
-            if callable(keep):
-                return Irreps([mul_ir for mul_ir in self if keep(mul_ir)])
-            keep = {Irrep(ir) for ir in keep}
-            return Irreps([(mul, ir) for mul, ir in self if ir in keep])
-
-        if drop is not None:
-            if isinstance(drop, str):
-                drop = Irreps(drop)
-            if isinstance(drop, Irrep):
-                drop = [drop]
-            if isinstance(drop, MulIrrep):
-                drop = [drop.ir]
-            if callable(drop):
-                return Irreps([mul_ir for mul_ir in self if not drop(mul_ir)])
-            drop = {Irrep(ir) for ir in drop}
-            return Irreps([(mul, ir) for mul, ir in self if ir not in drop])
-
-        if lmax is not None:
-            return Irreps([(mul, ir) for mul, ir in self if ir.l <= lmax])
+        pass
 
     @property
     def slice_by_mul(self):
-        r"""Return the slice with respect to the multiplicities.
-
-        Examples:
-            >>> Irreps("2x1e + 2e").slice_by_mul[2:]
-            1x2e
-
-            >>> Irreps("1e + 2e + 3x0e").slice_by_mul[1:3]
-            1x2e+1x0e
-
-            >>> Irreps("1e + 2e + 3x0e").slice_by_mul[1:]
-            1x2e+3x0e
-        """
-        return _MulIndexSliceHelper(self)
+        pass
 
     @property
     def slice_by_dim(self):
-        r"""Return the slice with respect to the dimensions.
-
-        Examples:
-            >>> Irreps("1e + 2e + 3x0e").slice_by_dim[:3]
-            1x1e
-
-            >>> Irreps("1e + 2e + 3x0e").slice_by_dim[3:8]
-            1x2e
-        """
-        return _DimIndexSliceHelper(self)
+        pass
 
     @property
     def slice_by_chunk(self):
-        r"""Return the slice with respect to the chunks.
-
-        Examples:
-            >>> Irreps("2x1e + 2e + 3x0e").slice_by_chunk[:1]
-            2x1e
-
-            >>> Irreps("1e + 2e + 3x0e").slice_by_chunk[1:]
-            1x2e+3x0e
-        """
-        return _ChunkIndexSliceHelper(self)
+        pass
 
     @property
     def dim(self) -> int:
-        r"""Dimension of the irreps.
-
-        Examples:
-            >>> Irreps("3x0e + 2x1e").dim
-            9
-        """
-        return sum(mul * ir.dim for mul, ir in self)
+        pass
 
     @property
     def num_irreps(self) -> int:
-        """Sum of the multiplicities.
-
-        Examples:
-            >>> Irreps("3x0e + 2x1e").num_irreps
-            5
-        """
-        return sum(mul for mul, _ in self)
+        pass
 
     @property
     def mul_gcd(self) -> int:
-        """Greatest common divisor of the multiplicities.
-
-        Examples:
-            >>> Irreps("3x0e + 2x1e").mul_gcd
-            1
-        """
-        return math.gcd(*[mul for mul, _ in self])
+        pass
 
     @property
     def ls(self) -> List[int]:
-        """List of the l values.
-
-        Examples:
-            >>> Irreps("3x0e + 2x1e").ls
-            [0, 0, 0, 1, 1]
-        """
-        return [l for mul, (l, p) in self for _ in range(mul)]
+        pass
 
     @property
     def lmax(self) -> int:
-        """Maximum l value.
-
-        Examples:
-            >>> Irreps("3x0e + 2x1e").lmax
-            1
-        """
-        if len(self) == 0:
-            raise ValueError("Cannot get lmax of empty Irreps")
-        return max(self.ls)
+        pass
 
     def __repr__(self):
         """Representation of the irreps."""
@@ -867,22 +600,7 @@ class Irreps(tuple):
         return "+".join(f"{mul_ir}" for mul_ir in self)
 
     def D_from_log_coordinates(self, log_coordinates, k=0):
-        r"""Matrix of the representation.
-
-        Args:
-            log_coordinates (`jax.Array`): array of shape :math:`(..., 3)`
-            k (`jax.Array`, optional): array of shape :math:`(...)`
-
-        Returns:
-            `jax.Array`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
-        """
-        return jax.scipy.linalg.block_diag(
-            *[
-                ir.D_from_log_coordinates(log_coordinates, k)
-                for mul, ir in self
-                for _ in range(mul)
-            ]
-        )
+        pass
 
     def D_from_angles(self, alpha, beta, gamma, k=0):
         r"""Compute the D matrix from the angles.
@@ -905,35 +623,13 @@ class Irreps(tuple):
         )
 
     def D_from_quaternion(self, q, k=0):
-        r"""Matrix of the representation.
-
-        Args:
-            q (`jax.Array`): array of shape :math:`(..., 4)`
-            k (`jax.Array`, optional): array of shape :math:`(...)`
-
-        Returns:
-            `jax.Array`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
-        """
-        return self.D_from_angles(*quaternion_to_angles(q), k)
+        pass
 
     def D_from_matrix(self, R):
-        r"""Matrix of the representation.
-
-        Args:
-            R (`jax.Array`): array of shape :math:`(..., 3, 3)`
-
-        Returns:
-            `jax.Array`: array of shape :math:`(..., \mathrm{dim}, \mathrm{dim})`
-        """
-        d = jnp.sign(jnp.linalg.det(R))
-        R = d[..., None, None] * R
-        k = (1 - d) / 2
-        return self.D_from_angles(*matrix_to_angles(R), k)
+        pass
 
     def D_from_axis_angle(self, axis, angle, k=0):
-        return self.D_from_log_coordinates(
-            axis_angle_to_log_coordinates(axis, angle), k
-        )
+        pass
 
     def generators(self) -> jax.Array:
         r"""Generators of the representation.
@@ -1089,23 +785,4 @@ def _wigner_D_from_angles(
 
 
 def _wigner_D_from_log_coordinates(l: int, log_coordinates: jax.Array) -> jax.Array:
-    r"""The Wigner-D matrix of the real irreducible representations of :math:`SO(3)`.
-
-    Args:
-        l (int): the representation order of the irrep
-        log_coordinates (jax.Array): the log coordinates
-
-    Returns:
-        jax.Array: the Wigner-D matrix
-    """
-    X = generators(l)
-
-    def func(log):
-        log = log.astype(X.dtype)
-        return jax.scipy.linalg.expm(jnp.einsum("a,aij->ij", log, X))
-
-    f = func
-    for _ in range(log_coordinates.ndim - 1):
-        f = jax.vmap(f)
-
-    return f(log_coordinates).astype(log_coordinates.dtype)
+    pass

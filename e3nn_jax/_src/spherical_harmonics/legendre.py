@@ -94,16 +94,7 @@ def legendre_spherical_harmonics(
 
     def f(l, sh):
         def g(m, sh):
-            y = sh_y[..., l, jnp.abs(m)]
-            if not normalize:
-                y = y * n[..., 0] ** l
-            if normalization == "norm":
-                y = y * (jnp.sqrt(4 * jnp.pi) / jnp.sqrt(2 * l + 1))
-            elif normalization == "component":
-                y = y * jnp.sqrt(4 * jnp.pi)
-
-            a = sh_alpha[..., lmax + m]
-            return sh.at[..., l**2 + l + m].set(y * a)
+            pass
 
         return jax.lax.fori_loop(-l, l + 1, g, sh)
 

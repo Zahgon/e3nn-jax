@@ -54,8 +54,6 @@ def normalize_function(phi: Callable[[float], float]) -> Callable[[float], float
         \int_{-\infty}^{\infty} \psi(x)^2 \frac{e^{-x^2/2}}{\sqrt{2\pi}} dx = 1
     """
     with jax.ensure_compile_time_eval():
-        # k = jax.random.PRNGKey(0)
-        # x = jax.random.normal(k, (1_000_000,))
         x = normalspace(1_000_001)
         c = jnp.mean(phi(x) ** 2) ** 0.5
         c = c.item()
@@ -65,7 +63,7 @@ def normalize_function(phi: Callable[[float], float]) -> Callable[[float], float
         else:
 
             def rho(x):
-                return phi(x) / c
+                pass
 
             return rho
 
@@ -167,7 +165,6 @@ def scalar_activation(
 
     irreps_out = e3nn.Irreps(irreps_out)
 
-    # for performance, if all the activation functions are the same, we can apply it to the contiguous array as well:
     if acts and acts.count(acts[0]) == len(acts):
         if acts[0] is None:
             array = input.array
@@ -240,13 +237,4 @@ def soft_normalization(
 
 
 def key_value_activation(phi, key, value):
-    assert key.ndim == 1
-    assert value.ndim == 1
-
-    d = value.shape[0]
-    key = key / jnp.sqrt(
-        1 / 16 + jnp.sum(key**2)
-    )  # 1/16 is arbitrary small... but not too small...
-    scalar = jnp.sum(key * value)
-    scalar = normalize_function(phi)(scalar)
-    return d**0.5 * scalar * key  # component normalized
+    pass
